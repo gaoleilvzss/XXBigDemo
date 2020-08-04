@@ -1,7 +1,7 @@
 package com.vinsuan.xiangxuelearnbigdemo.rxjava;
 
-import android.database.Observable;
 
+import io.reactivex.Observable;
 import retrofit2.http.GET;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
@@ -17,6 +17,6 @@ public interface WanAndroidService {
 
 
     @GET("project/list/{pageIndex}/json")
-    Observable<ItemBean> getItemProject(@Path("pageIndex") int pageIndex, @Query("cid") String cid);
+    Observable<ItemBean> getItemProject(@Path("pageIndex") int pageIndex, @Query("cid") int cid);
 
 }

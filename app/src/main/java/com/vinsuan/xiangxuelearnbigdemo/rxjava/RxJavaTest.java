@@ -1,17 +1,21 @@
 package com.vinsuan.xiangxuelearnbigdemo.rxjava;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.jakewharton.rxbinding2.view.RxView;
 import com.vinsuan.xiangxuelearnbigdemo.R;
 import com.vinsuan.xiangxuelearnbigdemo.inject.InjectUtils;
 import com.vinsuan.xiangxuelearnbigdemo.inject.injectView;
@@ -20,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
 import io.reactivex.ObservableSource;
@@ -27,6 +32,7 @@ import io.reactivex.ObservableTransformer;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
@@ -41,13 +47,17 @@ public class RxJavaTest extends Activity {
 
     @injectView(R.id.iv)
     ImageView imageView;
+    @injectView(R.id.tv)
+    TextView textView;
     private ProgressDialog progressDialog;
-
+    private WanAndroidService api;
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.rx_java_layout);
         InjectUtils.injectView(this);
+        api = HttpUtils.getRetrofit().create(WanAndroidService.class);
+        rxJavaGetData();
     }
 
     /**
@@ -81,8 +91,7 @@ public class RxJavaTest extends Activity {
                         return bitmap;
                     }
                 })
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
+                .compose(rxud())
                 .subscribe(new Observer<Bitmap>() {
                     @Override
                     public void onSubscribe(@NonNull Disposable d) {
@@ -113,6 +122,38 @@ public class RxJavaTest extends Activity {
                         if (progressDialog != null) {
                             progressDialog.dismiss();
                         }
+                    }
+                });
+    }
+
+    @SuppressLint("CheckResult")
+    public void rxJavaGetData(){
+        Button button = findViewById(R.id.btn);
+        RxView.clicks(button).throttleFirst(2000, TimeUnit.MILLISECONDS)
+                .observeOn(Schedulers.io())
+                .flatMap(new Function<Object, ObservableSource<Bean>>() {
+                    @Override
+                    public ObservableSource<Bean> apply(Object o) throws Exception {
+                        return api.getProject();
+                    }
+                })
+                .flatMap(new Function<Bean, ObservableSource<Bean.DataBean>>() {
+                    @Override
+                    public ObservableSource<Bean.DataBean> apply(Bean bean) throws Exception {
+                        return Observable.fromIterable(bean.getData());
+                    }
+                })
+                .flatMap(new Function<Bean.DataBean, ObservableSource<ItemBean>>() {
+                    @Override
+                    public ObservableSource<ItemBean> apply(Bean.DataBean dataBean) throws Exception {
+                        return api.getItemProject(0,dataBean.getId());
+                    }
+                })
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<ItemBean>() {
+                    @Override
+                    public void accept(ItemBean itemBean) throws Exception {
+                        textView.setText(itemBean.toString());
                     }
                 });
     }
